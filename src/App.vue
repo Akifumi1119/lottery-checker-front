@@ -12,6 +12,7 @@ const lotteryGroup = ref('');
 const lotteryNumbers = ref(['', '', '', '', '', '']);
 
 const resultMessage = ref('');
+const loading = ref(false);
 
 // 全角→半角に変換
 const toHalfWidth = (str) => {
