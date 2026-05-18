@@ -22,6 +22,7 @@ const toHalfWidth = (str) => {
 
 // 回と当選番号の情報取得
 const fetchLotteries = async () => {
+  loading.value = true;
   try {
     const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/lotteries`);
 
@@ -29,6 +30,7 @@ const fetchLotteries = async () => {
   } catch (error) {
     console.error(error);
   }
+  loading.value = false;
 };
 
 // 数字のみ入力受付
@@ -218,7 +220,11 @@ const checkLottery = () => {
   <div class="container">
     <h1>宝くじ当選チェッカー</h1>
 
-    <div class="form-area">
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-content">データ取得中です...</div>
+    </div>
+
+    <div v-else class="form-area">
       <label> 回を選択 </label>
 
       <select v-model="selectedRound">
@@ -339,5 +345,29 @@ body {
 .result-message {
   margin-top: 1rem;
   font-size: xx-large;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100%;
+
+  background: rgba(0, 0, 0, 0.5);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 9999;
+}
+
+.loading-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  font-size: 1.25rem;
 }
 </style>
