@@ -23,7 +23,7 @@ const toHalfWidth = (str) => {
 // 回と当選番号の情報取得
 const fetchLotteries = async () => {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/lotteries');
+    const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/lotteries`);
 
     lotteries.value = res.data;
   } catch (error) {
