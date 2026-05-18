@@ -367,8 +367,10 @@ body {
 
 .loading-content {
   background: white;
-  padding: 2rem;
+  padding: 2rem 3rem;
   border-radius: 1rem;
   font-size: 1.25rem;
+  color: black;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 }
 </style>
