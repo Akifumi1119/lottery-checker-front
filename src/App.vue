@@ -219,7 +219,7 @@ const checkLottery = () => {
 
 <template>
   <div class="container">
-    <h1>宝くじ当選チェッカー</h1>
+    <h1>ジャンボ宝くじ当選チェッカー</h1>
 
     <div v-if="loading" class="loading-overlay">
       <div class="loading-content">データ取得中です...</div>
