@@ -1,48 +1,241 @@
-# lottery-checker-front
+# ジャンボ宝くじ当選チェッカー
 
-This template should help get you started developing with Vue 3 in Vite.
+ジャンボ宝くじの当選番号と手持ちの宝くじを照合し、当選・落選を判定するWebアプリケーション。
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## 目次
 
-## Recommended Browser Setup
+- [概要](#概要)
+- [技術スタック](#技術スタック)
+- [機能仕様](#機能仕様)
+- [画面仕様](#画面仕様)
+- [当選判定ロジック](#当選判定ロジック)
+- [API仕様](#api仕様)
+- [環境変数](#環境変数)
+- [セットアップ](#セットアップ)
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+---
 
-## Type Support for `.vue` Imports in TS
+## 概要
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+| 項目 | 内容 |
+|------|------|
+| アプリ名 | ジャンボ宝くじ当選チェッカー |
+| 対象くじ | ジャンボ宝くじ（各回） |
+| 対応ブラウザ | Chrome / Edge / Brave / Firefox（最新版） |
 
-## Customize configuration
+---
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## 技術スタック
 
-## Project Setup
+| カテゴリ | ライブラリ / ツール |
+|----------|-------------------|
+| フレームワーク | Vue 3 (Composition API) |
+| 言語 | TypeScript |
+| ビルドツール | Vite |
+| ルーティング | Vue Router |
+| HTTPクライアント | Axios |
+| Linter | ESLint + oxlint |
+| フォーマッター | Prettier |
+| Node.js | v20.19.0 以上、または v22.12.0 以上 |
+
+---
+
+## 機能仕様
+
+### F-01 回一覧取得
+
+- アプリ起動時にAPIから宝くじの回一覧と各回の当選番号を取得する
+- データ取得中はローディングオーバーレイを全画面表示する
+
+### F-02 回選択
+
+- セレクトボックスから照合したい回（例: 第123回 グリーンジャンボ）を選択する
+- 回を選択した後に組・番号の入力フォームが表示される
+
+### F-03 組入力
+
+- 1つのテキスト入力フィールドに組番号を入力する
+- 全角数字は自動的に半角数字に変換される
+- 数字以外の文字は入力不可
+
+### F-04 番号入力
+
+- 6桁の宝くじ番号を1桁ずつ6つの入力フィールドに入力する
+- 1桁入力すると自動的に次のフィールドにフォーカスが移動する
+- Backspace で前のフィールドに戻る
+- 連続した数字のペーストに対応（例: `123456` をペーストすると各桁に分配される）
+- 全角数字は自動的に半角数字に変換される
+- 数字以外の文字は入力不可
+
+### F-05 当選照合
+
+- 「照合開始」ボタンをクリックすると入力値と当選番号を照合する
+- 照合結果（当選等級と当選金額、またはハズレ）を画面に表示する
+
+---
+
+## 画面仕様
+
+### メイン画面（`/`）
+
+```
+┌─────────────────────────────────┐
+│  ジャンボ宝くじ当選チェッカー       │
+│                                 │
+│  回を選択                        │
+│  [第○○○回 ○○ジャンボ ▼]         │
+│                                 │
+│  ※回選択後に表示                  │
+│  組を入力してください              │
+│  [____]                         │
+│                                 │
+│  宝くじ番号を入力してください       │
+│  [_][_][_][_][_][_]             │
+│                                 │
+│         [照合開始]               │
+│                                 │
+│  照合結果: ○等 当選 (○○○○万円)    │
+│                                 │
+├─────────────────────────────────┤
+│  © 2025 ジャンボ宝くじ当選…      │
+└─────────────────────────────────┘
+```
+
+| 要素 | 説明 |
+|------|------|
+| 回選択セレクトボックス | 取得した全回を表示。初期値は「回を選択」 |
+| 組入力フィールド | 数字のみ入力可 |
+| 番号入力フィールド（×6） | 各1桁、数字のみ入力可 |
+| 照合開始ボタン | クリックで判定を実行 |
+| 照合結果 | 当選時は等級と金額、落選時は「ハズレ」を表示 |
+| ローディングオーバーレイ | API取得中に全画面表示 |
+
+---
+
+## 当選判定ロジック
+
+APIから取得した `prizes` 配列を順番に走査し、最初に一致した賞を返す。
+
+### 判定ルール（優先順位順）
+
+| 優先度 | 賞 | 判定条件 |
+|--------|-----|---------|
+| 1 | 1等の前後賞 | 入力番号が「1等番号 ± 1」と一致 |
+| 2 | 1等の組違い賞 | 入力番号が1等番号と一致、かつ入力組が1等の組と異なる |
+| 3 | 下○ケタ | 入力番号の末尾○桁が当選番号の末尾○桁と一致（`組下` を含むルールは除く） |
+| 4 | 各組共通 | 組を問わず入力番号が当選番号と一致 |
+| 5 | ○組 | 入力組と当選組が一致、かつ入力番号が当選番号と一致 |
+| 6 | 組下○ケタ○組 | 入力組の末尾○桁が指定の組末尾と一致、かつ入力番号が当選番号と一致 |
+| — | ハズレ | 上記いずれにも一致しない |
+
+---
+
+## API仕様
+
+### 宝くじ一覧取得
+
+```
+GET {VITE_API_URL}/api/lotteries
+```
+
+**レスポンス例**
+
+```json
+[
+  {
+    "round": "123",
+    "name": "グリーンジャンボ",
+    "prizes": [
+      {
+        "rank": "1等",
+        "number": "123456",
+        "amount": "3億円",
+        "rule": "1組123456番"
+      },
+      {
+        "rank": "1等の前後賞",
+        "number": "123455",
+        "amount": "1億円",
+        "rule": "1組前後賞"
+      },
+      {
+        "rank": "1等の組違い賞",
+        "number": "123456",
+        "amount": "10万円",
+        "rule": "組違い賞"
+      },
+      {
+        "rank": "3等",
+        "number": "456",
+        "amount": "1万円",
+        "rule": "下3ケタ"
+      }
+    ]
+  }
+]
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `round` | string | 回号 |
+| `name` | string | くじの名称 |
+| `prizes[].rank` | string | 等級名称（例: `1等`, `1等の前後賞`） |
+| `prizes[].number` | string | 当選番号（6桁） |
+| `prizes[].amount` | string | 当選金額 |
+| `prizes[].rule` | string | 判定ルール文字列 |
+
+---
+
+## 環境変数
+
+`.env` ファイルをプロジェクトルートに作成する。
+
+| 変数名 | 説明 | 例 |
+|--------|------|-----|
+| `VITE_API_URL` | バックエンドAPIのベースURL | `http://localhost:3000` |
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
+---
+
+## セットアップ
+
+### インストール
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### 開発サーバー起動
 
 ```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+### 型チェック・本番ビルド
 
 ```sh
 npm run build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### プレビュー（本番ビルドの確認）
+
+```sh
+npm run preview
+```
+
+### Lint
 
 ```sh
 npm run lint
+```
+
+### フォーマット
+
+```sh
+npm run format
 ```
