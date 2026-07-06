@@ -218,60 +218,66 @@ const checkLottery = () => {
 </script>
 
 <template>
-  <div class="container">
-    <h1>ジャンボ宝くじ当選チェッカー</h1>
+  <div class="page-wrapper">
+    <div class="container">
+      <h1>ジャンボ宝くじ当選チェッカー</h1>
 
-    <div v-if="loading" class="loading-overlay">
-      <div class="loading-content">データ取得中です...</div>
-    </div>
+      <div v-if="loading" class="loading-overlay">
+        <div class="loading-content">データ取得中です...</div>
+      </div>
 
-    <div v-else class="form-area">
-      <label> 回を選択 </label>
+      <div v-else class="form-area">
+        <label> 回を選択 </label>
 
-      <select v-model="selectedRound">
-        <option value="">回を選択</option>
+        <select v-model="selectedRound">
+          <option value="">回を選択</option>
 
-        <option v-for="lottery in lotteries" :key="lottery.round" :value="lottery.round">
-          第{{ lottery.round }}回
-          {{ lottery.name }}
-        </option>
-      </select>
-      <div v-if="isSelectedRound" class="number-input-area">
-        <div class="group-input-area">
-          <p>組を入力してください</p>
-          <input
-            v-model="lotteryGroup"
-            @input="lotteryGroup = toHalfWidth(lotteryGroup).replace(/[^0-9]/g, '')"
-            type="text"
-            class="group-input"
-            placeholder="組数"
-          />
+          <option v-for="lottery in lotteries" :key="lottery.round" :value="lottery.round">
+            第{{ lottery.round }}回
+            {{ lottery.name }}
+          </option>
+        </select>
+        <div v-if="isSelectedRound" class="number-input-area">
+          <div class="group-input-area">
+            <p>組を入力してください</p>
+            <input
+              v-model="lotteryGroup"
+              @input="lotteryGroup = toHalfWidth(lotteryGroup).replace(/[^0-9]/g, '')"
+              type="text"
+              class="group-input"
+              placeholder="組数"
+            />
+          </div>
+
+          <p class="input-number-info">宝くじ番号を入力してください</p>
+          <div class="number-inputs">
+            <input
+              v-for="(number, index) in lotteryNumbers"
+              :key="index"
+              :ref="(el) => (numberInputRefs[index] = el)"
+              v-model="lotteryNumbers[index]"
+              type="text"
+              maxlength="1"
+              class="number-input"
+              @input="
+                onlyNumberInput($event, index);
+                moveNextInput(index);
+              "
+              @keydown="movePrevInput($event, index)"
+              @paste="pasteNumbers"
+            />
+          </div>
+
+          <button class="lottery-check" @click="checkLottery">照合開始</button>
+
+          <p v-if="resultMessage" class="result-message">照合結果:{{ resultMessage }}</p>
         </div>
-
-        <p class="input-number-info">宝くじ番号を入力してください</p>
-        <div class="number-inputs">
-          <input
-            v-for="(number, index) in lotteryNumbers"
-            :key="index"
-            :ref="(el) => (numberInputRefs[index] = el)"
-            v-model="lotteryNumbers[index]"
-            type="text"
-            maxlength="1"
-            class="number-input"
-            @input="
-              onlyNumberInput($event, index);
-              moveNextInput(index);
-            "
-            @keydown="movePrevInput($event, index)"
-            @paste="pasteNumbers"
-          />
-        </div>
-
-        <button class="lottery-check" @click="checkLottery">照合開始</button>
-
-        <p v-if="resultMessage" class="result-message">照合結果:{{ resultMessage }}</p>
       </div>
     </div>
+
+    <footer class="footer">
+      <p class="footer-text">© {{ new Date().getFullYear() }} ジャンボ宝くじ当選チェッカー | Akifumi Doi</p>
+    </footer>
   </div>
 </template>
 
@@ -279,12 +285,25 @@ const checkLottery = () => {
 body {
   margin: 0;
   font-family: sans-serif;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.page-wrapper {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 100vh;
 }
 
 .container {
   max-width: 40rem;
-  margin: auto;
+  margin: 0 auto;
   padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .input-box {
@@ -372,5 +391,26 @@ body {
   font-size: 1.25rem;
   color: black;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.footer {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem;
+  text-align: center;
+  border-top: 1px solid #ddd;
+  background-color: #f8f8f8;
+}
+
+.footer-text {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  color: #555;
+}
+
+.footer-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #999;
 }
 </style>
