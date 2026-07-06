@@ -220,7 +220,7 @@ const checkLottery = () => {
 <template>
   <div class="page-wrapper">
     <div class="container">
-      <h1>ジャンボ宝くじ当選チェッカー</h1>
+      <h1 class="title">ジャンボ宝くじ当選チェッカー</h1>
 
       <div v-if="loading" class="loading-overlay">
         <div class="loading-content">データ取得中です...</div>
@@ -229,7 +229,7 @@ const checkLottery = () => {
       <div v-else class="form-area">
         <label> 回を選択 </label>
 
-        <select v-model="selectedRound">
+        <select class="select-round" v-model="selectedRound">
           <option value="">回を選択</option>
 
           <option v-for="lottery in lotteries" :key="lottery.round" :value="lottery.round">
@@ -276,7 +276,9 @@ const checkLottery = () => {
     </div>
 
     <footer class="footer">
-      <p class="footer-text">© {{ new Date().getFullYear() }} ジャンボ宝くじ当選チェッカー | Akifumi Doi</p>
+      <p class="footer-text">
+        © {{ new Date().getFullYear() }} ジャンボ宝くじ当選チェッカー | Akifumi Doi
+      </p>
     </footer>
   </div>
 </template>
@@ -304,6 +306,18 @@ body {
   padding: 2rem;
   width: 100%;
   box-sizing: border-box;
+}
+
+.title {
+  margin-top: 10rem;
+}
+
+.form-area {
+  font-size: large;
+}
+
+.select-round {
+  width: 50%;
 }
 
 .input-box {
