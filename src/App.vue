@@ -262,7 +262,11 @@ const checkLottery = () => {
 
       <div class="lottery-type-area">
         <label>宝くじの種類</label>
-        <select class="select-type" :value="lotteryType" @change="switchType(($event.target as HTMLSelectElement).value)">
+        <select
+          class="select-type"
+          :value="lotteryType"
+          @change="switchType(($event.target as HTMLSelectElement).value)"
+        >
           <option v-for="type in LOTTERY_TYPES" :key="type.key" :value="type.key">
             {{ type.label }}
           </option>
@@ -356,6 +360,7 @@ body {
 
 .title {
   margin-top: 10rem;
+  margin-bottom: 3rem;
 }
 
 .lottery-type-area {
