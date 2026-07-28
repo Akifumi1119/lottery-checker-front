@@ -41,14 +41,49 @@ const loading = ref(false);
 
 const lotteryType = ref('jumbo');
 
-const LOTTERY_TYPES: { key: string; label: string; endpoint: string; statsKey: keyof Omit<Stats, 'total'> }[] = [
+const LOTTERY_TYPES: {
+  key: string;
+  label: string;
+  endpoint: string;
+  statsKey: keyof Omit<Stats, 'total'>;
+}[] = [
   { key: 'jumbo', label: 'ジャンボ宝くじ', endpoint: '/api/lotteries', statsKey: 'lotteries' },
-  { key: 'zenkoku', label: '全国通常宝くじ', endpoint: '/api/lotteries/zenkoku', statsKey: 'lotteries/zenkoku' },
-  { key: 'tokyo', label: '東京都宝くじ', endpoint: '/api/lotteries/tokyo', statsKey: 'lotteries/tokyo' },
-  { key: 'kct', label: '関東・中部・東北自治宝くじ', endpoint: '/api/lotteries/kct', statsKey: 'lotteries/kct' },
-  { key: 'kinki', label: '近畿宝くじ', endpoint: '/api/lotteries/kinki', statsKey: 'lotteries/kinki' },
-  { key: 'nishinihon', label: '西日本宝くじ', endpoint: '/api/lotteries/nishinihon', statsKey: 'lotteries/nishinihon' },
-  { key: 'chiiki', label: '地域医療等振興自治宝くじ', endpoint: '/api/lotteries/chiiki', statsKey: 'lotteries/chiiki' },
+  {
+    key: 'zenkoku',
+    label: '全国通常宝くじ',
+    endpoint: '/api/lotteries/zenkoku',
+    statsKey: 'lotteries/zenkoku',
+  },
+  {
+    key: 'tokyo',
+    label: '東京都宝くじ',
+    endpoint: '/api/lotteries/tokyo',
+    statsKey: 'lotteries/tokyo',
+  },
+  {
+    key: 'kct',
+    label: '関東・中部・東北自治宝くじ',
+    endpoint: '/api/lotteries/kct',
+    statsKey: 'lotteries/kct',
+  },
+  {
+    key: 'kinki',
+    label: '近畿宝くじ',
+    endpoint: '/api/lotteries/kinki',
+    statsKey: 'lotteries/kinki',
+  },
+  {
+    key: 'nishinihon',
+    label: '西日本宝くじ',
+    endpoint: '/api/lotteries/nishinihon',
+    statsKey: 'lotteries/nishinihon',
+  },
+  {
+    key: 'chiiki',
+    label: '地域医療等振興自治宝くじ',
+    endpoint: '/api/lotteries/chiiki',
+    statsKey: 'lotteries/chiiki',
+  },
 ];
 
 const stats = ref<Stats | null>(null);
@@ -62,12 +97,12 @@ const fetchStats = async () => {
   }
 };
 
-const currentTypeStats = computed(() => {
-  if (!stats.value) return null;
-  const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
-  if (!type) return null;
-  return stats.value[type.statsKey];
-});
+// const currentTypeStats = computed(() => {
+//   if (!stats.value) return null;
+//   const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
+//   if (!type) return null;
+//   return stats.value[type.statsKey];
+// });
 
 // 全角→半角に変換
 const toHalfWidth = (str: string): string => {
@@ -295,9 +330,9 @@ const checkLottery = () => {
       <div class="lottery-type-area">
         <div class="lottery-type-label-row">
           <label>宝くじの種類</label>
-          <span v-if="currentTypeStats !== null" class="stats-current">
+          <!-- <span v-if="currentTypeStats !== null" class="stats-current">
             アクセス数: {{ currentTypeStats.toLocaleString() }} 回
-          </span>
+          </span> -->
         </div>
         <select
           class="select-type"
