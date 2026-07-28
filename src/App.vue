@@ -488,4 +488,40 @@ body {
   font-size: 0.75rem;
   color: #999;
 }
+
+@media (max-width: 600px) {
+  .container {
+    padding: 1.25rem;
+  }
+
+  .title {
+    margin-top: 3rem;
+    font-size: 1.5rem;
+  }
+
+  .select-type,
+  .select-round {
+    width: 100%;
+  }
+
+  .result-message {
+    font-size: x-large;
+  }
+}
+
+@media (max-width: 400px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .number-input {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.2rem;
+  }
+
+  .lottery-check {
+    margin-left: calc(2 * (2.5rem + 0.5rem));
+  }
+}
 </style>
