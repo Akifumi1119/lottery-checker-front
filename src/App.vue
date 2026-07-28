@@ -1,11 +1,25 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 
-const lotteries = ref([]);
+interface Prize {
+  rank: string;
+  amount: string;
+  rule: string;
+  number: string;
+}
+
+interface Lottery {
+  round: string;
+  name: string;
+  draw_date: string;
+  prizes: Prize[];
+}
+
+const lotteries = ref<Lottery[]>([]);
 const selectedRound = ref('');
 
-const numberInputRefs = ref([]);
+const numberInputRefs = ref<(HTMLInputElement | null)[]>([]);
 
 const lotteryGroup = ref('');
 
@@ -27,8 +41,8 @@ const LOTTERY_TYPES = [
 ];
 
 // 全角→半角に変換
-const toHalfWidth = (str) => {
-  return str.replace(/[０-９]/g, (s) => {
+const toHalfWidth = (str: string): string => {
+  return str.replace(/[０-９]/g, (s: string) => {
     return String.fromCharCode(s.charCodeAt(0) - 0xfee0);
   });
 };
@@ -38,7 +52,8 @@ const fetchLotteries = async () => {
   loading.value = true;
   try {
     const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
-    const res = await axios.get(`${import.meta.env.VITE_API_URL}${type.endpoint}`);
+    if (!type) return;
+    const res = await axios.get<Lottery[]>(`${import.meta.env.VITE_API_URL}${type.endpoint}`);
 
     lotteries.value = res.data;
   } catch (error) {
@@ -47,7 +62,7 @@ const fetchLotteries = async () => {
   loading.value = false;
 };
 
-const switchType = (key) => {
+const switchType = (key: string) => {
   lotteryType.value = key;
   lotteries.value = [];
   selectedRound.value = '';
@@ -58,8 +73,8 @@ const switchType = (key) => {
 };
 
 // 数字のみ入力受付
-const onlyNumberInput = (event, index) => {
-  const value = toHalfWidth(event.target.value);
+const onlyNumberInput = (event: Event, index: number) => {
+  const value = toHalfWidth((event.target as HTMLInputElement).value);
 
   const numberOnly = value.replace(/[^0-9]/g, '');
 
@@ -67,8 +82,8 @@ const onlyNumberInput = (event, index) => {
 };
 
 // 番号のペースト対応
-const pasteNumbers = (event) => {
-  const pastedText = event.clipboardData.getData('text');
+const pasteNumbers = (event: ClipboardEvent) => {
+  const pastedText = event.clipboardData?.getData('text') ?? '';
 
   const numbersOnly = pastedText.replace(/[^0-9]/g, '');
 
@@ -81,7 +96,7 @@ const pasteNumbers = (event) => {
   numbersOnly
     .slice(0, 6)
     .split('')
-    .forEach((num, index) => {
+    .forEach((num: string, index: number) => {
       lotteryNumbers.value[index] = num;
     });
 
@@ -91,14 +106,14 @@ const pasteNumbers = (event) => {
 };
 
 // 入力時、次の桁のインプットボックスに移動
-const moveNextInput = (index) => {
+const moveNextInput = (index: number) => {
   if (lotteryNumbers.value[index] && index < 5) {
     numberInputRefs.value[index + 1]?.focus();
   }
 };
 
 // 数字削除時、前の桁のインプットボックスに移動
-const movePrevInput = (event, index) => {
+const movePrevInput = (event: KeyboardEvent, index: number) => {
   if (event.key === 'Backspace' && !lotteryNumbers.value[index] && index > 0) {
     numberInputRefs.value[index - 1]?.focus();
   }
@@ -245,16 +260,13 @@ const checkLottery = () => {
     <div class="container">
       <h1 class="title">宝くじ当選チェッカー</h1>
 
-      <div class="tab-bar">
-        <button
-          v-for="type in LOTTERY_TYPES"
-          :key="type.key"
-          class="tab-button"
-          :class="{ active: lotteryType === type.key }"
-          @click="switchType(type.key)"
-        >
-          {{ type.label }}
-        </button>
+      <div class="lottery-type-area">
+        <label>宝くじの種類</label>
+        <select class="select-type" :value="lotteryType" @change="switchType(($event.target as HTMLSelectElement).value)">
+          <option v-for="type in LOTTERY_TYPES" :key="type.key" :value="type.key">
+            {{ type.label }}
+          </option>
+        </select>
       </div>
 
       <div v-if="loading" class="loading-overlay">
@@ -289,7 +301,7 @@ const checkLottery = () => {
             <input
               v-for="(number, index) in lotteryNumbers"
               :key="index"
-              :ref="(el) => (numberInputRefs[index] = el)"
+              :ref="(el) => (numberInputRefs[index] = el as HTMLInputElement | null)"
               v-model="lotteryNumbers[index]"
               type="text"
               maxlength="1"
@@ -346,35 +358,14 @@ body {
   margin-top: 10rem;
 }
 
-.tab-bar {
-  display: flex;
-  gap: 0.5rem;
+.lottery-type-area {
   margin-bottom: 1.5rem;
-  border-bottom: 2px solid var(--color-border);
 }
 
-.tab-button {
-  padding: 0.6rem 1.2rem;
-  font-size: 1rem;
-  cursor: pointer;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--color-text);
-  margin-bottom: -2px;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-
-.tab-button:hover {
-  color: var(--color-heading);
-}
-
-.tab-button.active {
-  color: var(--color-heading);
-  font-weight: bold;
-  border-bottom-color: var(--color-heading);
+.select-type {
+  display: block;
+  margin-top: 0.4rem;
+  width: 70%;
 }
 
 .form-area {
@@ -436,7 +427,7 @@ body {
 
 .lottery-check {
   display: block;
-  margin: 1rem auto 0;
+  margin: 0.75rem 0 0 calc(2 * (3rem + 0.5rem));
   padding: 0.75rem 1.5rem;
   cursor: pointer;
 }
