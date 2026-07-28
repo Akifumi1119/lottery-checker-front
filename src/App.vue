@@ -16,6 +16,17 @@ interface Lottery {
   prizes: Prize[];
 }
 
+interface Stats {
+  lotteries: number;
+  'lotteries/zenkoku': number;
+  'lotteries/tokyo': number;
+  'lotteries/kct': number;
+  'lotteries/kinki': number;
+  'lotteries/nishinihon': number;
+  'lotteries/chiiki': number;
+  total: number;
+}
+
 const lotteries = ref<Lottery[]>([]);
 const selectedRound = ref('');
 
@@ -30,15 +41,33 @@ const loading = ref(false);
 
 const lotteryType = ref('jumbo');
 
-const LOTTERY_TYPES = [
-  { key: 'jumbo', label: 'ジャンボ宝くじ', endpoint: '/api/lotteries' },
-  { key: 'zenkoku', label: '全国通常宝くじ', endpoint: '/api/lotteries/zenkoku' },
-  { key: 'tokyo', label: '東京都宝くじ', endpoint: '/api/lotteries/tokyo' },
-  { key: 'kct', label: '関東・中部・東北自治宝くじ', endpoint: '/api/lotteries/kct' },
-  { key: 'kinki', label: '近畿宝くじ', endpoint: '/api/lotteries/kinki' },
-  { key: 'nishinihon', label: '西日本宝くじ', endpoint: '/api/lotteries/nishinihon' },
-  { key: 'chiiki', label: '地域医療等振興自治宝くじ', endpoint: '/api/lotteries/chiiki' },
+const LOTTERY_TYPES: { key: string; label: string; endpoint: string; statsKey: keyof Omit<Stats, 'total'> }[] = [
+  { key: 'jumbo', label: 'ジャンボ宝くじ', endpoint: '/api/lotteries', statsKey: 'lotteries' },
+  { key: 'zenkoku', label: '全国通常宝くじ', endpoint: '/api/lotteries/zenkoku', statsKey: 'lotteries/zenkoku' },
+  { key: 'tokyo', label: '東京都宝くじ', endpoint: '/api/lotteries/tokyo', statsKey: 'lotteries/tokyo' },
+  { key: 'kct', label: '関東・中部・東北自治宝くじ', endpoint: '/api/lotteries/kct', statsKey: 'lotteries/kct' },
+  { key: 'kinki', label: '近畿宝くじ', endpoint: '/api/lotteries/kinki', statsKey: 'lotteries/kinki' },
+  { key: 'nishinihon', label: '西日本宝くじ', endpoint: '/api/lotteries/nishinihon', statsKey: 'lotteries/nishinihon' },
+  { key: 'chiiki', label: '地域医療等振興自治宝くじ', endpoint: '/api/lotteries/chiiki', statsKey: 'lotteries/chiiki' },
 ];
+
+const stats = ref<Stats | null>(null);
+
+const fetchStats = async () => {
+  try {
+    const res = await axios.get<Stats>(`${import.meta.env.VITE_API_URL}/api/stats`);
+    stats.value = res.data;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const currentTypeStats = computed(() => {
+  if (!stats.value) return null;
+  const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
+  if (!type) return null;
+  return stats.value[type.statsKey];
+});
 
 // 全角→半角に変換
 const toHalfWidth = (str: string): string => {
@@ -125,6 +154,7 @@ const isSelectedRound = computed(() => {
 
 onMounted(() => {
   fetchLotteries();
+  fetchStats();
 });
 
 const selectedLottery = computed(() => {
@@ -260,8 +290,15 @@ const checkLottery = () => {
     <div class="container">
       <h1 class="title">宝くじ当選チェッカー</h1>
 
+      <p v-if="stats" class="stats-total">累計アクセス数: {{ stats.total.toLocaleString() }} 回</p>
+
       <div class="lottery-type-area">
-        <label>宝くじの種類</label>
+        <div class="lottery-type-label-row">
+          <label>宝くじの種類</label>
+          <span v-if="currentTypeStats !== null" class="stats-current">
+            アクセス数: {{ currentTypeStats.toLocaleString() }} 回
+          </span>
+        </div>
         <select
           class="select-type"
           :value="lotteryType"
@@ -363,13 +400,31 @@ body {
   margin-bottom: 3rem;
 }
 
+.stats-total {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  margin-bottom: 2rem;
+  opacity: 0.7;
+}
+
 .lottery-type-area {
   margin-bottom: 1.5rem;
 }
 
+.lottery-type-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.stats-current {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
 .select-type {
   display: block;
-  margin-top: 0.4rem;
   width: 70%;
 }
 
