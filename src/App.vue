@@ -14,6 +14,18 @@ const lotteryNumbers = ref(['', '', '', '', '', '']);
 const resultMessage = ref('');
 const loading = ref(false);
 
+const lotteryType = ref('jumbo');
+
+const LOTTERY_TYPES = [
+  { key: 'jumbo', label: 'ジャンボ宝くじ', endpoint: '/api/lotteries' },
+  { key: 'zenkoku', label: '全国通常宝くじ', endpoint: '/api/lotteries/zenkoku' },
+  { key: 'tokyo', label: '東京都宝くじ', endpoint: '/api/lotteries/tokyo' },
+  { key: 'kct', label: '関東・中部・東北自治宝くじ', endpoint: '/api/lotteries/kct' },
+  { key: 'kinki', label: '近畿宝くじ', endpoint: '/api/lotteries/kinki' },
+  { key: 'nishinihon', label: '西日本宝くじ', endpoint: '/api/lotteries/nishinihon' },
+  { key: 'chiiki', label: '地域医療等振興自治宝くじ', endpoint: '/api/lotteries/chiiki' },
+];
+
 // 全角→半角に変換
 const toHalfWidth = (str) => {
   return str.replace(/[０-９]/g, (s) => {
@@ -25,13 +37,24 @@ const toHalfWidth = (str) => {
 const fetchLotteries = async () => {
   loading.value = true;
   try {
-    const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/lotteries`);
+    const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
+    const res = await axios.get(`${import.meta.env.VITE_API_URL}${type.endpoint}`);
 
     lotteries.value = res.data;
   } catch (error) {
     console.error(error);
   }
   loading.value = false;
+};
+
+const switchType = (key) => {
+  lotteryType.value = key;
+  lotteries.value = [];
+  selectedRound.value = '';
+  lotteryGroup.value = '';
+  lotteryNumbers.value = ['', '', '', '', '', ''];
+  resultMessage.value = '';
+  fetchLotteries();
 };
 
 // 数字のみ入力受付
@@ -220,7 +243,19 @@ const checkLottery = () => {
 <template>
   <div class="page-wrapper">
     <div class="container">
-      <h1 class="title">ジャンボ宝くじ当選チェッカー</h1>
+      <h1 class="title">宝くじ当選チェッカー</h1>
+
+      <div class="tab-bar">
+        <button
+          v-for="type in LOTTERY_TYPES"
+          :key="type.key"
+          class="tab-button"
+          :class="{ active: lotteryType === type.key }"
+          @click="switchType(type.key)"
+        >
+          {{ type.label }}
+        </button>
+      </div>
 
       <div v-if="loading" class="loading-overlay">
         <div class="loading-content">データ取得中です...</div>
@@ -276,9 +311,8 @@ const checkLottery = () => {
     </div>
 
     <footer class="footer">
-      <p class="footer-text">
-        © {{ new Date().getFullYear() }} ジャンボ宝くじ当選チェッカー | Akifumi Doi
-      </p>
+      <p class="footer-text">Front: Vercel Back: Render</p>
+      <p class="footer-text">© {{ new Date().getFullYear() }} 宝くじ当選チェッカー | Akifumi Doi</p>
     </footer>
   </div>
 </template>
@@ -310,6 +344,37 @@ body {
 
 .title {
   margin-top: 10rem;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.tab-button {
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text);
+  margin-bottom: -2px;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.tab-button:hover {
+  color: var(--color-heading);
+}
+
+.tab-button.active {
+  color: var(--color-heading);
+  font-weight: bold;
+  border-bottom-color: var(--color-heading);
 }
 
 .form-area {
