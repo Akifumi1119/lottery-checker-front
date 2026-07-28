@@ -325,7 +325,7 @@ const checkLottery = () => {
     <div class="container">
       <h1 class="title">宝くじ当選チェッカー</h1>
 
-      <p v-if="stats" class="stats-total">累計アクセス数: {{ stats.total.toLocaleString() }} 回</p>
+      <!-- <p v-if="stats" class="stats-total">累計アクセス数: {{ stats.total.toLocaleString() }} 回</p> -->
 
       <div class="lottery-type-area">
         <div class="lottery-type-label-row">
