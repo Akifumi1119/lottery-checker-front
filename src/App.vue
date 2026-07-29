@@ -204,7 +204,10 @@ const selectedLottery = computed(() => {
 });
 
 // 1番号に対する当選チェック（結果文字列を返す）
-const checkSingleNumber = (inputGroup: string, inputNumber: string): { result: string; isWin: boolean } => {
+const checkSingleNumber = (
+  inputGroup: string,
+  inputNumber: string,
+): { result: string; isWin: boolean } => {
   if (!selectedLottery.value) return { result: 'ハズレ', isWin: false };
 
   const prizes = selectedLottery.value.prizes;
@@ -346,12 +349,16 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
               class="mode-btn"
               :class="{ active: inputMode === 'single' }"
               @click="switchMode('single')"
-            >単番</button>
+            >
+              単番
+            </button>
             <button
               class="mode-btn"
               :class="{ active: inputMode === 'renban' }"
               @click="switchMode('renban')"
-            >連番</button>
+            >
+              連番
+            </button>
           </div>
 
           <div class="group-input-area">
@@ -366,7 +373,9 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
           </div>
 
           <p class="input-number-info">
-            {{ inputMode === 'renban' ? '開始番号を入力してください' : '宝くじ番号を入力してください' }}
+            {{
+              inputMode === 'renban' ? '開始番号を入力してください' : '宝くじ番号を入力してください'
+            }}
           </p>
           <div class="number-inputs">
             <input
@@ -402,13 +411,16 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
 
           <div v-if="hasResults" class="results-area">
             <template v-if="inputMode === 'single'">
-              <p class="result-message" :class="{ win: results[0]?.isWin, lose: !results[0]?.isWin }">
+              <p
+                class="result-message"
+                :class="{ win: results[0]?.isWin, lose: !results[0]?.isWin }"
+              >
                 照合結果：{{ results[0]?.result }}
               </p>
             </template>
             <template v-else>
               <p class="renban-summary">
-                照合結果：{{ winCount > 0 ? `${winCount}枚当選！` : '全てハズレ' }}
+                照合結果：{{ winCount > 0 ? `${winCount}枚当選` : '全てハズレ' }}
               </p>
               <ul class="renban-results">
                 <li
