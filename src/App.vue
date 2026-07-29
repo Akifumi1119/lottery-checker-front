@@ -524,7 +524,7 @@ body {
 
 .select-type {
   display: block;
-  width: 70%;
+  width: 50%;
 }
 
 .form-area {
@@ -532,7 +532,7 @@ body {
 }
 
 .select-round {
-  width: 50%;
+  width: 75%;
 }
 
 .number-input-area {
