@@ -27,7 +27,13 @@ interface Stats {
   total: number;
 }
 
+interface TicketInput {
+  group: string;
+  numbers: string[];
+}
+
 interface CheckResult {
+  group: string;
   number: string;
   result: string;
   isWin: boolean;
@@ -36,11 +42,9 @@ interface CheckResult {
 const lotteries = ref<Lottery[]>([]);
 const selectedRound = ref('');
 
-const numberInputRefs = ref<(HTMLInputElement | null)[]>([]);
+const numberInputRefs = ref<Record<string, HTMLInputElement | null>>({});
 
-const lotteryGroup = ref('');
-
-const lotteryNumbers = ref(['', '', '', '', '', '']);
+const tickets = ref<TicketInput[]>([{ group: '', numbers: Array(6).fill('') }]);
 
 const results = ref<CheckResult[]>([]);
 const loading = ref(false);
@@ -120,7 +124,6 @@ const fetchLotteries = async () => {
     const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
     if (!type) return;
     const res = await axios.get<Lottery[]>(`${import.meta.env.VITE_API_URL}${type.endpoint}`);
-
     lotteries.value = res.data;
   } catch (error) {
     console.error(error);
@@ -132,8 +135,7 @@ const switchType = (key: string) => {
   lotteryType.value = key;
   lotteries.value = [];
   selectedRound.value = '';
-  lotteryGroup.value = '';
-  lotteryNumbers.value = ['', '', '', '', '', ''];
+  tickets.value = [{ group: '', numbers: Array(6).fill('') }];
   results.value = [];
   fetchLotteries();
 };
@@ -143,67 +145,75 @@ const switchMode = (mode: 'single' | 'renban') => {
   results.value = [];
 };
 
+const addTicket = () => {
+  tickets.value.push({ group: '', numbers: Array(6).fill('') });
+  results.value = [];
+};
+
+const removeTicket = (ti: number) => {
+  tickets.value.splice(ti, 1);
+  results.value = [];
+};
+
 // 数字のみ入力受付
-const onlyNumberInput = (event: Event, index: number) => {
+const onlyNumberInput = (event: Event, ti: number, di: number) => {
   const value = toHalfWidth((event.target as HTMLInputElement).value);
-
-  const numberOnly = value.replace(/[^0-9]/g, '');
-
-  lotteryNumbers.value[index] = numberOnly;
+  const ticket = tickets.value[ti];
+  if (ticket) ticket.numbers[di] = value.replace(/[^0-9]/g, '');
 };
 
 // 番号のペースト対応
-const pasteNumbers = (event: ClipboardEvent) => {
+const pasteNumbers = (event: ClipboardEvent, ti: number) => {
   const pastedText = event.clipboardData?.getData('text') ?? '';
-
   const numbersOnly = pastedText.replace(/[^0-9]/g, '');
 
-  if (!numbersOnly) {
-    return;
-  }
+  if (!numbersOnly) return;
 
   event.preventDefault();
 
   numbersOnly
     .slice(0, 6)
     .split('')
-    .forEach((num: string, index: number) => {
-      lotteryNumbers.value[index] = num;
+    .forEach((num, di) => {
+      const ticket = tickets.value[ti];
+      if (ticket) ticket.numbers[di] = num;
     });
 
   const lastIndex = Math.min(numbersOnly.length, 6) - 1;
-
-  numberInputRefs.value[lastIndex]?.focus();
+  numberInputRefs.value[`${ti}-${lastIndex}`]?.focus();
 };
 
 // 入力時、次の桁のインプットボックスに移動
-const moveNextInput = (index: number) => {
-  if (lotteryNumbers.value[index] && index < 5) {
-    numberInputRefs.value[index + 1]?.focus();
+const moveNextInput = (ti: number, di: number) => {
+  if (tickets.value[ti]?.numbers[di] && di < 5) {
+    numberInputRefs.value[`${ti}-${di + 1}`]?.focus();
   }
 };
 
 // 数字削除時、前の桁のインプットボックスに移動
-const movePrevInput = (event: KeyboardEvent, index: number) => {
-  if (event.key === 'Backspace' && !lotteryNumbers.value[index] && index > 0) {
-    numberInputRefs.value[index - 1]?.focus();
+const movePrevInput = (event: KeyboardEvent, ti: number, di: number) => {
+  if (event.key === 'Backspace' && !tickets.value[ti]?.numbers[di] && di > 0) {
+    numberInputRefs.value[`${ti}-${di - 1}`]?.focus();
   }
 };
 
-const isSelectedRound = computed(() => {
-  return selectedRound.value;
-});
+const isSelectedRound = computed(() => selectedRound.value);
 
 onMounted(() => {
   fetchLotteries();
   fetchStats();
 });
 
-const selectedLottery = computed(() => {
-  return lotteries.value.find((lottery) => lottery.round === selectedRound.value);
-});
+const selectedLottery = computed(() =>
+  lotteries.value.find((lottery) => lottery.round === selectedRound.value),
+);
 
-// 1番号に対する当選チェック（結果文字列を返す）
+// 連番モードで表示するチケット（先頭1枚のみ）
+const displayedTickets = computed(() =>
+  inputMode.value === 'renban' ? tickets.value.slice(0, 1) : tickets.value,
+);
+
+// 1番号に対する当選チェック
 const checkSingleNumber = (
   inputGroup: string,
   inputNumber: string,
@@ -283,29 +293,31 @@ const checkSingleNumber = (
 const checkLottery = () => {
   results.value = [];
 
-  if (!selectedLottery.value) {
-    return;
-  }
-
-  const startNumber = lotteryNumbers.value.join('');
-  const inputGroup = lotteryGroup.value;
+  if (!selectedLottery.value) return;
 
   if (inputMode.value === 'single') {
-    const { result, isWin } = checkSingleNumber(inputGroup, startNumber);
-    results.value = [{ number: startNumber, result, isWin }];
+    for (const ticket of tickets.value) {
+      const number = ticket.numbers.join('');
+      const { result, isWin } = checkSingleNumber(ticket.group, number);
+      results.value.push({ group: ticket.group, number, result, isWin });
+    }
   } else {
+    const ticket = tickets.value[0];
+    if (!ticket) return;
+    const startNumber = ticket.numbers.join('');
     const startNum = parseInt(startNumber, 10);
     const count = Math.max(2, Math.min(renbanCount.value, 100));
     for (let i = 0; i < count; i++) {
       const num = String(startNum + i).padStart(6, '0');
-      const { result, isWin } = checkSingleNumber(inputGroup, num);
-      results.value.push({ number: num, result, isWin });
+      const { result, isWin } = checkSingleNumber(ticket.group, num);
+      results.value.push({ group: ticket.group, number: num, result, isWin });
     }
   }
 };
 
 const hasResults = computed(() => results.value.length > 0);
 const winCount = computed(() => results.value.filter((r) => r.isWin).length);
+const isSingleTicket = computed(() => inputMode.value === 'single' && results.value.length === 1);
 </script>
 
 <template>
@@ -343,11 +355,11 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
             {{ lottery.name }}
           </option>
         </select>
+
         <div v-if="isSelectedRound" class="number-input-area">
           <div class="mode-toggle">
             <button
               class="mode-btn"
-              title="1枚で照合する場合はこちら"
               :class="{ active: inputMode === 'single' }"
               @click="switchMode('single')"
             >
@@ -355,7 +367,6 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
             </button>
             <button
               class="mode-btn"
-              title="連番で照合する場合はこちら"
               :class="{ active: inputMode === 'renban' }"
               @click="switchMode('renban')"
             >
@@ -363,39 +374,56 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
             </button>
           </div>
 
-          <div class="group-input-area">
-            <p>組を入力してください</p>
-            <input
-              v-model="lotteryGroup"
-              @input="lotteryGroup = toHalfWidth(lotteryGroup).replace(/[^0-9]/g, '')"
-              type="text"
-              class="group-input"
-              placeholder="組数"
-            />
+          <div v-for="(ticket, ti) in displayedTickets" :key="ti" class="ticket-row">
+            <div v-if="inputMode === 'single' && tickets.length > 1" class="ticket-row-header">
+              <span class="ticket-index">{{ ti + 1 }}枚目</span>
+              <button class="remove-ticket-btn" @click="removeTicket(ti)">削除</button>
+            </div>
+
+            <div class="group-input-area">
+              <p>組を入力してください</p>
+              <input
+                v-model="ticket.group"
+                @input="ticket.group = toHalfWidth(ticket.group).replace(/[^0-9]/g, '')"
+                type="text"
+                class="group-input"
+                placeholder="組数"
+              />
+            </div>
+
+            <p class="input-number-info">
+              {{
+                inputMode === 'renban'
+                  ? '開始番号を入力してください'
+                  : '宝くじ番号を入力してください'
+              }}
+            </p>
+            <div class="number-inputs">
+              <input
+                v-for="(_, di) in ticket.numbers"
+                :key="di"
+                :ref="
+                  (el) => {
+                    numberInputRefs[`${ti}-${di}`] = el as HTMLInputElement | null;
+                  }
+                "
+                v-model="ticket.numbers[di]"
+                type="text"
+                maxlength="1"
+                class="number-input"
+                @input="
+                  onlyNumberInput($event, ti, di);
+                  moveNextInput(ti, di);
+                "
+                @keydown="movePrevInput($event, ti, di)"
+                @paste="pasteNumbers($event, ti)"
+              />
+            </div>
           </div>
 
-          <p class="input-number-info">
-            {{
-              inputMode === 'renban' ? '開始番号を入力してください' : '宝くじ番号を入力してください'
-            }}
-          </p>
-          <div class="number-inputs">
-            <input
-              v-for="(_number, index) in lotteryNumbers"
-              :key="index"
-              :ref="(el) => (numberInputRefs[index] = el as HTMLInputElement | null)"
-              v-model="lotteryNumbers[index]"
-              type="text"
-              maxlength="1"
-              class="number-input"
-              @input="
-                onlyNumberInput($event, index);
-                moveNextInput(index);
-              "
-              @keydown="movePrevInput($event, index)"
-              @paste="pasteNumbers"
-            />
-          </div>
+          <button v-if="inputMode === 'single'" class="add-ticket-btn" @click="addTicket">
+            + 追加
+          </button>
 
           <div v-if="inputMode === 'renban'" class="renban-count-area">
             <label class="renban-count-label">枚数</label>
@@ -412,9 +440,9 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
           <button class="lottery-check" @click="checkLottery">照合開始</button>
 
           <div v-if="hasResults" class="results-area">
-            <template v-if="inputMode === 'single'">
+            <template v-if="isSingleTicket">
               <p class="result-ticket-number">
-                番号：{{ lotteryGroup }}組 {{ results[0]?.number }}番
+                番号：{{ results[0]?.group }}組 {{ results[0]?.number }}番
               </p>
               <p
                 class="result-message"
@@ -425,16 +453,16 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
             </template>
             <template v-else>
               <p class="renban-summary">
-                照合結果：{{ winCount > 0 ? `${winCount}枚当選！` : '全てハズレ' }}
+                照合結果：{{ winCount > 0 ? `${winCount}枚当選` : '全てハズレ' }}
               </p>
               <ul class="renban-results">
                 <li
-                  v-for="item in results"
-                  :key="item.number"
+                  v-for="(item, idx) in results"
+                  :key="idx"
                   class="renban-result-item"
                   :class="{ win: item.isWin, lose: !item.isWin }"
                 >
-                  <span class="renban-number">{{ lotteryGroup }}組 {{ item.number }}番</span>
+                  <span class="renban-number">{{ item.group }}組 {{ item.number }}番</span>
                   <span class="renban-result-text">{{ item.result }}</span>
                 </li>
               </ul>
@@ -540,6 +568,61 @@ body {
   border-color: #333;
 }
 
+.ticket-row {
+  padding: 0.75rem 0;
+  border-bottom: 1px dashed #ddd;
+}
+
+.ticket-row:last-of-type {
+  border-bottom: none;
+}
+
+.ticket-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.ticket-index {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #444;
+}
+
+.remove-ticket-btn {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #888;
+}
+
+.remove-ticket-btn:hover {
+  border-color: #c00;
+  color: #c00;
+}
+
+.add-ticket-btn {
+  display: block;
+  margin-top: 0.75rem;
+  padding: 0.5rem 1.2rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  background: #fff;
+  border: 1px dashed #aaa;
+  border-radius: 4px;
+  color: #555;
+  width: 100%;
+}
+
+.add-ticket-btn:hover {
+  border-color: #333;
+  color: #333;
+}
+
 .input-number-info {
   margin-top: 1rem;
 }
@@ -557,7 +640,7 @@ body {
 }
 
 .group-input-area {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .group-input {
@@ -589,17 +672,13 @@ body {
 
 .lottery-check {
   display: block;
-  margin: 0.75rem 0 0 calc(2 * (3rem + 0.5rem));
+  margin: 0.75rem 0 0;
   padding: 0.75rem 1.5rem;
   cursor: pointer;
 }
 
 .results-area {
   margin-top: 1rem;
-}
-
-.result-message {
-  font-size: xx-large;
 }
 
 .result-ticket-number {
@@ -611,6 +690,7 @@ body {
 
 .result-message {
   margin-top: 0;
+  font-size: xx-large;
 }
 
 .result-message.win {
@@ -663,7 +743,7 @@ body {
 .renban-number {
   font-family: monospace;
   font-size: 1.1rem;
-  min-width: 5rem;
+  min-width: 9rem;
 }
 
 .renban-result-text {
@@ -746,10 +826,6 @@ body {
     width: 2.5rem;
     height: 2.5rem;
     font-size: 1.2rem;
-  }
-
-  .lottery-check {
-    margin-left: calc(2 * (2.5rem + 0.5rem));
   }
 }
 </style>
