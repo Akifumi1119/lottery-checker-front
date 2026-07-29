@@ -360,6 +360,7 @@ const isSingleTicket = computed(() => inputMode.value === 'single' && results.va
           <div class="mode-toggle">
             <button
               class="mode-btn"
+              title="1枚~複数で照合する場合はこちら"
               :class="{ active: inputMode === 'single' }"
               @click="switchMode('single')"
             >
@@ -367,6 +368,7 @@ const isSingleTicket = computed(() => inputMode.value === 'single' && results.va
             </button>
             <button
               class="mode-btn"
+              title="連番で照合する場合はこちら"
               :class="{ active: inputMode === 'renban' }"
               @click="switchMode('renban')"
             >
