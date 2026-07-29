@@ -347,6 +347,7 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
           <div class="mode-toggle">
             <button
               class="mode-btn"
+              title="1枚で照合する場合はこちら"
               :class="{ active: inputMode === 'single' }"
               @click="switchMode('single')"
             >
@@ -354,6 +355,7 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
             </button>
             <button
               class="mode-btn"
+              title="連番で照合する場合はこちら"
               :class="{ active: inputMode === 'renban' }"
               @click="switchMode('renban')"
             >
@@ -411,7 +413,9 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
 
           <div v-if="hasResults" class="results-area">
             <template v-if="inputMode === 'single'">
-              <p class="result-ticket-number">番号：{{ lotteryGroup }}組 {{ results[0]?.number }}番</p>
+              <p class="result-ticket-number">
+                番号：{{ lotteryGroup }}組 {{ results[0]?.number }}番
+              </p>
               <p
                 class="result-message"
                 :class="{ win: results[0]?.isWin, lose: !results[0]?.isWin }"
