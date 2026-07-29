@@ -400,7 +400,7 @@ const checkLottery = () => {
 
     <footer class="footer">
       <p class="footer-text">Front: Vercel Back: Render</p>
-      <p class="footer-text">© {{ new Date().getFullYear() }} 宝くじ当選チェッカー | _1kax</p>
+      <p class="footer-text">© {{ new Date().getFullYear() }} 宝くじ当選チェッカー | Akifumi Doi</p>
     </footer>
   </div>
 </template>
