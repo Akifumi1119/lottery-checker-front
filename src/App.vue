@@ -411,16 +411,17 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
 
           <div v-if="hasResults" class="results-area">
             <template v-if="inputMode === 'single'">
+              <p class="result-ticket-number">番号：{{ lotteryGroup }}組 {{ results[0]?.number }}番</p>
               <p
                 class="result-message"
                 :class="{ win: results[0]?.isWin, lose: !results[0]?.isWin }"
               >
-                照合結果：{{ results[0]?.result }}
+                {{ results[0]?.result }}
               </p>
             </template>
             <template v-else>
               <p class="renban-summary">
-                照合結果：{{ winCount > 0 ? `${winCount}枚当選` : '全てハズレ' }}
+                照合結果：{{ winCount > 0 ? `${winCount}枚当選！` : '全てハズレ' }}
               </p>
               <ul class="renban-results">
                 <li
@@ -429,7 +430,7 @@ const winCount = computed(() => results.value.filter((r) => r.isWin).length);
                   class="renban-result-item"
                   :class="{ win: item.isWin, lose: !item.isWin }"
                 >
-                  <span class="renban-number">{{ item.number }}</span>
+                  <span class="renban-number">{{ lotteryGroup }}組 {{ item.number }}番</span>
                   <span class="renban-result-text">{{ item.result }}</span>
                 </li>
               </ul>
@@ -595,6 +596,17 @@ body {
 
 .result-message {
   font-size: xx-large;
+}
+
+.result-ticket-number {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  color: #555;
+}
+
+.result-message {
+  margin-top: 0;
 }
 
 .result-message.win {
