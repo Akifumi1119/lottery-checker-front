@@ -27,6 +27,12 @@ interface Stats {
   total: number;
 }
 
+interface CheckResult {
+  number: string;
+  result: string;
+  isWin: boolean;
+}
+
 const lotteries = ref<Lottery[]>([]);
 const selectedRound = ref('');
 
@@ -36,8 +42,11 @@ const lotteryGroup = ref('');
 
 const lotteryNumbers = ref(['', '', '', '', '', '']);
 
-const resultMessage = ref('');
+const results = ref<CheckResult[]>([]);
 const loading = ref(false);
+
+const inputMode = ref<'single' | 'renban'>('single');
+const renbanCount = ref(10);
 
 const lotteryType = ref('jumbo');
 
@@ -97,13 +106,6 @@ const fetchStats = async () => {
   }
 };
 
-// const currentTypeStats = computed(() => {
-//   if (!stats.value) return null;
-//   const type = LOTTERY_TYPES.find((t) => t.key === lotteryType.value);
-//   if (!type) return null;
-//   return stats.value[type.statsKey];
-// });
-
 // 全角→半角に変換
 const toHalfWidth = (str: string): string => {
   return str.replace(/[０-９]/g, (s: string) => {
@@ -132,8 +134,13 @@ const switchType = (key: string) => {
   selectedRound.value = '';
   lotteryGroup.value = '';
   lotteryNumbers.value = ['', '', '', '', '', ''];
-  resultMessage.value = '';
+  results.value = [];
   fetchLotteries();
+};
+
+const switchMode = (mode: 'single' | 'renban') => {
+  inputMode.value = mode;
+  results.value = [];
 };
 
 // 数字のみ入力受付
@@ -196,92 +203,52 @@ const selectedLottery = computed(() => {
   return lotteries.value.find((lottery) => lottery.round === selectedRound.value);
 });
 
-// 当選チェック
-const checkLottery = () => {
-  resultMessage.value = '';
-
-  if (!selectedLottery.value) {
-    return;
-  }
-
-  const inputNumber = lotteryNumbers.value.join('');
-  const inputGroup = lotteryGroup.value;
+// 1番号に対する当選チェック（結果文字列を返す）
+const checkSingleNumber = (inputGroup: string, inputNumber: string): { result: string; isWin: boolean } => {
+  if (!selectedLottery.value) return { result: 'ハズレ', isWin: false };
 
   const prizes = selectedLottery.value.prizes;
-
   const firstPrize = prizes.find((prize) => prize.rank.includes('1等'));
 
   for (const prize of prizes) {
-    // ====================
-    // 1等の前後賞
-    // ====================
-
     if (prize.rank.includes('前後賞') && firstPrize) {
       const firstNumber = Number(firstPrize.number);
-
       const prevNumber = String(firstNumber - 1).padStart(6, '0');
-
       const nextNumber = String(firstNumber + 1).padStart(6, '0');
 
       if (inputNumber === prevNumber || inputNumber === nextNumber) {
-        resultMessage.value = `${prize.rank} 当選 (${prize.amount})`;
-
-        return;
+        return { result: `${prize.rank} 当選 (${prize.amount})`, isWin: true };
       }
     }
-
-    // ====================
-    // 1等の組違い賞
-    // ====================
 
     if (prize.rank.includes('組違い賞') && firstPrize) {
       if (
         inputNumber === firstPrize.number &&
         inputGroup !== firstPrize.rule.match(/(\d+)組/)?.[1]
       ) {
-        resultMessage.value = `${prize.rank} 当選 (${prize.amount})`;
-
-        return;
+        return { result: `${prize.rank} 当選 (${prize.amount})`, isWin: true };
       }
     }
 
     const rule = prize.rule;
 
-    // ====================
-    // 下◯ケタ判定
-    // ====================
-
     const tailMatch = rule.match(/下(\d)ケタ/);
 
     if (tailMatch && !rule.includes('組下')) {
       const digit = Number(tailMatch[1]);
-
       const inputTail = inputNumber.slice(-digit);
-
       const prizeTail = prize.number.slice(-digit);
 
       if (inputTail === prizeTail) {
-        resultMessage.value = `${prize.rank} 当選 (${prize.amount})`;
-
-        return;
+        return { result: `${prize.rank} 当選 (${prize.amount})`, isWin: true };
       }
     }
-
-    // ====================
-    // 各組共通
-    // ====================
 
     if (rule.includes('各組共通')) {
       if (inputNumber === prize.number) {
-        resultMessage.value = `${prize.rank} 当選 (${prize.amount})`;
-
-        return;
+        return { result: `${prize.rank} 当選 (${prize.amount})`, isWin: true };
       }
     }
-
-    // ====================
-    // xx組
-    // ====================
 
     const exactGroupMatch = rule.match(/(\d+)組/);
 
@@ -289,35 +256,53 @@ const checkLottery = () => {
       const prizeGroup = exactGroupMatch[1];
 
       if (inputGroup === prizeGroup && inputNumber === prize.number) {
-        resultMessage.value = `${prize.rank} 当選 (${prize.amount})`;
-
-        return;
+        return { result: `${prize.rank} 当選 (${prize.amount})`, isWin: true };
       }
     }
-
-    // ====================
-    // 組下◯ケタ◯組
-    // ====================
 
     const groupTailMatch = rule.match(/組下(\d)ケタ(\d+)組/);
 
     if (groupTailMatch) {
       const digit = Number(groupTailMatch[1]);
-
       const targetGroupTail = groupTailMatch[2];
-
       const inputGroupTail = inputGroup.slice(-digit);
 
       if (inputGroupTail === targetGroupTail && inputNumber === prize.number) {
-        resultMessage.value = `${prize.rank} 当選 (${prize.amount})`;
-
-        return;
+        return { result: `${prize.rank} 当選 (${prize.amount})`, isWin: true };
       }
     }
   }
 
-  resultMessage.value = 'ハズレ';
+  return { result: 'ハズレ', isWin: false };
 };
+
+// 当選チェック
+const checkLottery = () => {
+  results.value = [];
+
+  if (!selectedLottery.value) {
+    return;
+  }
+
+  const startNumber = lotteryNumbers.value.join('');
+  const inputGroup = lotteryGroup.value;
+
+  if (inputMode.value === 'single') {
+    const { result, isWin } = checkSingleNumber(inputGroup, startNumber);
+    results.value = [{ number: startNumber, result, isWin }];
+  } else {
+    const startNum = parseInt(startNumber, 10);
+    const count = Math.max(2, Math.min(renbanCount.value, 100));
+    for (let i = 0; i < count; i++) {
+      const num = String(startNum + i).padStart(6, '0');
+      const { result, isWin } = checkSingleNumber(inputGroup, num);
+      results.value.push({ number: num, result, isWin });
+    }
+  }
+};
+
+const hasResults = computed(() => results.value.length > 0);
+const winCount = computed(() => results.value.filter((r) => r.isWin).length);
 </script>
 
 <template>
@@ -325,14 +310,9 @@ const checkLottery = () => {
     <div class="container">
       <h1 class="title">宝くじ当選チェッカー</h1>
 
-      <!-- <p v-if="stats" class="stats-total">累計アクセス数: {{ stats.total.toLocaleString() }} 回</p> -->
-
       <div class="lottery-type-area">
         <div class="lottery-type-label-row">
           <label>宝くじの種類</label>
-          <!-- <span v-if="currentTypeStats !== null" class="stats-current">
-            アクセス数: {{ currentTypeStats.toLocaleString() }} 回
-          </span> -->
         </div>
         <select
           class="select-type"
@@ -361,6 +341,19 @@ const checkLottery = () => {
           </option>
         </select>
         <div v-if="isSelectedRound" class="number-input-area">
+          <div class="mode-toggle">
+            <button
+              class="mode-btn"
+              :class="{ active: inputMode === 'single' }"
+              @click="switchMode('single')"
+            >単番</button>
+            <button
+              class="mode-btn"
+              :class="{ active: inputMode === 'renban' }"
+              @click="switchMode('renban')"
+            >連番</button>
+          </div>
+
           <div class="group-input-area">
             <p>組を入力してください</p>
             <input
@@ -372,10 +365,12 @@ const checkLottery = () => {
             />
           </div>
 
-          <p class="input-number-info">宝くじ番号を入力してください</p>
+          <p class="input-number-info">
+            {{ inputMode === 'renban' ? '開始番号を入力してください' : '宝くじ番号を入力してください' }}
+          </p>
           <div class="number-inputs">
             <input
-              v-for="(number, index) in lotteryNumbers"
+              v-for="(_number, index) in lotteryNumbers"
               :key="index"
               :ref="(el) => (numberInputRefs[index] = el as HTMLInputElement | null)"
               v-model="lotteryNumbers[index]"
@@ -391,15 +386,49 @@ const checkLottery = () => {
             />
           </div>
 
+          <div v-if="inputMode === 'renban'" class="renban-count-area">
+            <label class="renban-count-label">枚数</label>
+            <input
+              v-model.number="renbanCount"
+              type="number"
+              min="2"
+              max="100"
+              class="renban-count-input"
+            />
+            <span class="renban-count-unit">枚</span>
+          </div>
+
           <button class="lottery-check" @click="checkLottery">照合開始</button>
 
-          <p v-if="resultMessage" class="result-message">照合結果:{{ resultMessage }}</p>
+          <div v-if="hasResults" class="results-area">
+            <template v-if="inputMode === 'single'">
+              <p class="result-message" :class="{ win: results[0]?.isWin, lose: !results[0]?.isWin }">
+                照合結果：{{ results[0]?.result }}
+              </p>
+            </template>
+            <template v-else>
+              <p class="renban-summary">
+                照合結果：{{ winCount > 0 ? `${winCount}枚当選！` : '全てハズレ' }}
+              </p>
+              <ul class="renban-results">
+                <li
+                  v-for="item in results"
+                  :key="item.number"
+                  class="renban-result-item"
+                  :class="{ win: item.isWin, lose: !item.isWin }"
+                >
+                  <span class="renban-number">{{ item.number }}</span>
+                  <span class="renban-result-text">{{ item.result }}</span>
+                </li>
+              </ul>
+            </template>
+          </div>
         </div>
       </div>
     </div>
 
     <footer class="footer">
-      <p class="footer-text">Front: Vercel Back: Render</p>
+      <p class="footer-text">Front: Vercel, Back: Render</p>
       <p class="footer-text">© {{ new Date().getFullYear() }} 宝くじ当選チェッカー | Akifumi Doi</p>
     </footer>
   </div>
@@ -435,13 +464,6 @@ body {
   margin-bottom: 3rem;
 }
 
-.stats-total {
-  font-size: 0.9rem;
-  color: var(--color-text);
-  margin-bottom: 2rem;
-  opacity: 0.7;
-}
-
 .lottery-type-area {
   margin-bottom: 1.5rem;
 }
@@ -451,11 +473,6 @@ body {
   align-items: baseline;
   gap: 1rem;
   margin-bottom: 0.4rem;
-}
-
-.stats-current {
-  font-size: 0.8rem;
-  opacity: 0.7;
 }
 
 .select-type {
@@ -471,27 +488,39 @@ body {
   width: 50%;
 }
 
-.input-box {
-  width: 100%;
-  padding: 1rem;
-  margin-top: 1rem;
-  box-sizing: border-box;
-}
-
-.check-button {
-  margin-top: 1rem;
-  padding: 1rem;
-  cursor: pointer;
-}
-
-.result-box {
-  margin-top: 2rem;
-  border: 1px solid #ccc;
-  padding: 1rem;
-}
-
 .number-input-area {
   margin-top: 1.5rem;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  width: fit-content;
+}
+
+.mode-btn {
+  padding: 0.4rem 1.2rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: 1px solid #aaa;
+  background: #f5f5f5;
+  color: #555;
+}
+
+.mode-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.mode-btn:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.mode-btn.active {
+  background: #333;
+  color: #fff;
+  border-color: #333;
 }
 
 .input-number-info {
@@ -520,6 +549,27 @@ body {
   font-size: 1rem;
 }
 
+.renban-count-area {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.renban-count-label {
+  font-size: 1rem;
+}
+
+.renban-count-input {
+  width: 4rem;
+  padding: 0.4rem;
+  font-size: 1rem;
+}
+
+.renban-count-unit {
+  font-size: 1rem;
+}
+
 .lottery-check {
   display: block;
   margin: 0.75rem 0 0 calc(2 * (3rem + 0.5rem));
@@ -527,9 +577,69 @@ body {
   cursor: pointer;
 }
 
-.result-message {
+.results-area {
   margin-top: 1rem;
+}
+
+.result-message {
   font-size: xx-large;
+}
+
+.result-message.win {
+  color: #c00;
+  font-weight: bold;
+}
+
+.result-message.lose {
+  color: inherit;
+}
+
+.renban-summary {
+  font-size: x-large;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+}
+
+.renban-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.renban-result-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #eee;
+  font-size: 1rem;
+}
+
+.renban-result-item:last-child {
+  border-bottom: none;
+}
+
+.renban-result-item.win {
+  background: #fff5f5;
+  color: #c00;
+  font-weight: bold;
+}
+
+.renban-result-item.lose {
+  color: #888;
+}
+
+.renban-number {
+  font-family: monospace;
+  font-size: 1.1rem;
+  min-width: 5rem;
+}
+
+.renban-result-text {
+  flex: 1;
 }
 
 .loading-overlay {
