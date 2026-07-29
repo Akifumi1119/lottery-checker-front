@@ -672,7 +672,7 @@ body {
 
 .lottery-check {
   display: block;
-  margin: 0.75rem auto 0;
+  margin: 2rem auto 0;
   padding: 0.75rem 1.5rem;
   cursor: pointer;
 }
